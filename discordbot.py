@@ -1,6 +1,7 @@
 import discord
 import re
 import datetime
+import pytz
 import os
 import asyncio
 
@@ -15,8 +16,7 @@ ATTEND_EMOJI = '✋'
 ATTEND_CANCEL_EMOJI = '↩'
 RECRUITMENT_CANCEL_EMOJI = '🚫'
 
-EMBED_TITLE = f'参加者募集中（{ATTEND_EMOJI}参加 {ATTEND_CANCEL_EMOJI}参加取消 \
-    {RECRUITMENT_CANCEL_EMOJI}募集停止）'
+EMBED_TITLE = f'参加者募集中（{ATTEND_EMOJI}参加 {ATTEND_CANCEL_EMOJI}参加取消 {RECRUITMENT_CANCEL_EMOJI}募集停止）'
 ATTENDEE_LIST_TITLE = '参加者一覧'
 
 @client.event
@@ -48,7 +48,7 @@ async def on_message(message):
                         value=f'{len(message.mentions)+1} / {num_of_people}')
 
     # 予定開始時刻の作成 時刻と日付を拾って設定
-    now = datetime.datetime.today()
+    now = datetime.datetime.now(pytz.timezone('Asia/Tokyo'))
     start_time = f'{now.hour}:{now.minute}'
     start_date = f'{now.month}/{now.day}'
     target_time = TIME_PATTERN.search(content)
@@ -106,11 +106,11 @@ async def on_reaction_add(reaction, user):
 
     # 各リアクションごとの処理を実行
     if reaction.emoji == ATTEND_EMOJI: # ✋
-        react_attend(message, user)
+        await react_attend(message, user)
     elif reaction.emoji == ATTEND_CANCEL_EMOJI: # ↩
-        react_attend_cancel()
+        await react_attend_cancel(message, user)
     elif reaction.emoji == RECRUITMENT_CANCEL_EMOJI: # 🚫
-        react_recruitment_cancel()
+        await react_recruitment_cancel(message, user)
 
 def react_attend(message, user):
     # 参加者一覧の更新
@@ -132,7 +132,7 @@ def react_attend(message, user):
     message.edit(embed=embed)
     return
 
-def react_attend_cancel(message, user):
+async def react_attend_cancel(message, user):
     # 参加者一覧の更新
     embed = message.embeds[0]
     idx, attendee = get_attendee_field(embed)
@@ -152,10 +152,10 @@ def react_attend_cancel(message, user):
     message.edit(embed=embed)
     return
 
-def react_recruitment_cancel(message, user):
+async def react_recruitment_cancel(message, user):
 
     # リアクションを削除
-    message.clear_reactions()
+    await message.clear_reactions()
     return
 
 def get_attendee_field(embed):
