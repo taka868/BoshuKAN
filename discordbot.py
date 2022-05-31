@@ -112,7 +112,7 @@ async def on_reaction_add(reaction, user):
     elif reaction.emoji == RECRUITMENT_CANCEL_EMOJI: # 🚫
         await react_recruitment_cancel(message, user)
 
-def react_attend(message, user):
+async def react_attend(message, user):
     # 参加者一覧の更新
     embed = message.embeds[0]
     idx, attendee = get_attendee_field(embed)
