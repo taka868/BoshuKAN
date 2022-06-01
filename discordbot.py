@@ -43,9 +43,9 @@ async def on_message(message):
     # 埋め込みメッセージを作成して送信
     embed_msg = discord.Embed(title=EMBED_TITLE,
                     color=0x000099)
-    # 募集状況の作成 メンション数+自分で人数を設定
+    # 募集状況の作成 メンション数+自分 / 指定数+自分 で人数を設定
     embed_msg.add_field(name='募集状況',
-                        value=f'{len(message.mentions)+1} / {num_of_people}')
+                        value=f'{len(message.mentions)+1} / {num_of_people+1}')
 
     # 予定開始時刻の作成 時刻と日付を拾って設定
     now = datetime.datetime.now(pytz.timezone('Asia/Tokyo'))
