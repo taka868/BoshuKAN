@@ -111,6 +111,8 @@ async def on_reaction_add(reaction, user):
         await react_attend_cancel(message, user)
     elif reaction.emoji == RECRUITMENT_CANCEL_EMOJI: # 🚫
         await react_recruitment_cancel(message, user)
+    else:
+        print('[DEBUG] This emoji is not applicable.')
 
 async def react_attend(message, user):
     # 参加者一覧の更新
@@ -153,9 +155,21 @@ async def react_attend_cancel(message, user):
     return
 
 async def react_recruitment_cancel(message, user):
+    embed = message.embeds[0]
+    idx, attendee = get_attendee_field(embed)
+    if attendee[0] != user.name:
+        # 募集を止められるのは言い出しっぺだけ
+        print('[DEBUG] Non-recruiter has stopped recruiting.')
+        return
 
     # リアクションを削除
     await message.clear_reactions()
+
+    # 募集停止メッセージ
+    embed = message.embeds[0]
+    embed.set_footer(text='※募集が停止されました')
+    await message.edit(embed=embed)
+
     return
 
 def get_attendee_field(embed):
