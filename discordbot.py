@@ -8,6 +8,7 @@ import asyncio
 client = discord.Client()
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 
+MENTION_PATTERN = re.compile('<@[1-9]*>')
 NUM_PEOPLE_PATTERN = re.compile('@[1-9]')
 DATE_PATTERN = re.compile('(0?[1-9]|1[0-2])[/\-月](0?[1-9]|[12][0-9]|3[01])日?')
 TIME_PATTERN = re.compile('((0?|1)[0-9]|2[0-3])[:時][0-5][0-9]分?')
@@ -33,7 +34,8 @@ async def on_message(message):
     content = message.content
 
     # メッセージから人数の取得
-    target_num = re.search(NUM_PEOPLE_PATTERN, content)
+    content_without_mention = re.sub(MENTION_PATTERN, '', content)
+    target_num = re.search(NUM_PEOPLE_PATTERN, content_without_mention)
     if target_num is None:
         # 人数が入力されていないメッセージの場合は nop
         print('[DEBUG] Message with no number of people entered.')
