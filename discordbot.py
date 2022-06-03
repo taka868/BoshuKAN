@@ -155,9 +155,11 @@ async def react_attend_cancel(message, user):
     return
 
 async def react_recruitment_cancel(message, user):
+    # 募集停止
     embed = message.embeds[0]
     idx, attendee = get_attendee_field(embed)
-    if attendee[0] != user.name:
+    print(f'{attendee[0]} != {user.name}')
+    if attendee[0] != f'@{user.name}':
         # 募集を止められるのは言い出しっぺだけ
         print('[DEBUG] Non-recruiter has stopped recruiting.')
         return
