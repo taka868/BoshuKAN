@@ -15,8 +15,8 @@ TIME_PATTERN = re.compile('((0?|1)[0-9]|2[0-3])[:時][0-5][0-9]分?')
 ATTEND_EMOJI = '✋'
 ATTEND_CANCEL_EMOJI = '↩'
 RECRUITMENT_CANCEL_EMOJI = '🚫'
-
 EMBED_TITLE = f'参加者募集中（{ATTEND_EMOJI}参加 {ATTEND_CANCEL_EMOJI}参加取消 {RECRUITMENT_CANCEL_EMOJI}募集停止）'
+RECRUITMENT_STATUS_TITLE = '募集状況'
 ATTENDEE_LIST_TITLE = '参加者一覧'
 
 @client.event
@@ -44,7 +44,7 @@ async def on_message(message):
     embed_msg = discord.Embed(title=EMBED_TITLE,
                     color=0x000099)
     # 募集状況の作成 メンション数+自分 / 指定数+自分 で人数を設定
-    embed_msg.add_field(name='募集状況',
+    embed_msg.add_field(name=RECRUITMENT_STATUS_TITLE,
                         value=f'{len(message.mentions)+1} / {num_of_people+1}')
 
     # 予定開始時刻の作成 時刻と日付を拾って設定
@@ -132,6 +132,19 @@ async def react_attend(message, user):
     update_value = '\n'.join(attendee)
     embed.set_field_at(idx, name=ATTENDEE_LIST_TITLE, value=update_value)
     message.edit(embed=embed)
+
+    # 人数に達したら募集終了
+    num_atendee, num_total = get_recruitment_status_field()
+    if len(attendee) == num_total:
+        print
+        # リアクションを削除
+        await message.clear_reactions()
+
+        # 募集停止メッセージ
+        embed = message.embeds[0]
+        embed.set_footer(text='※参加者が集まりました')
+        await message.edit(embed=embed)
+
     return
 
 async def react_attend_cancel(message, user):
@@ -174,7 +187,19 @@ async def react_recruitment_cancel(message, user):
 
     return
 
+def get_recruitment_status_field(embed):
+    # タイトルが募集状況のものを取得
+    for i in range(len(embed.fields)):
+        field = embed.fields[i]        
+        if field.name == RECRUITMENT_STATUS_TITLE:
+            # 最後の数字が総数、その前の数字が集まっている人数になっているはず
+            numbers = re.findall(r'\d+', field.value)
+            return numbers[0], numbers[1]
+    # BoshuKAN のメッセージでは参加者一覧がないことはありえない
+    return -1, None
+
 def get_attendee_field(embed):
+    # タイトルが参加者一覧のものを取得
     for i in range(len(embed.fields)):
         field = embed.fields[i]        
         if field.name == ATTENDEE_LIST_TITLE:
