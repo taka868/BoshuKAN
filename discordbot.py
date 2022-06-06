@@ -53,20 +53,17 @@ async def on_message(message):
 
     # 予定開始時刻の作成 時刻と日付を拾って設定
     now = datetime.datetime.now(pytz.timezone('Asia/Tokyo'))
-    start_time = f'{now.hour}:{now.minute}'
+    start_time = f'{str(now.hour).zfill(2)}:{str(now.minute).zfill(2)}'
     start_date = f'{now.month}/{now.day}'
     target_time = TIME_PATTERN.search(content)
+
     # 時刻が入力されている
     if target_time is not None:
-        print(target_time.group())
-        time_str = target_time.group()
-        if '時' in time_str:
-            if '分' not in time_str:
-                # TODO: 正規表現的にここはこないかも。"21時"とかでも 21:00 で発動させたい
-                time_str.join('00')
-            start_time = time_str.replace('時', ':').replace('分', '')
-        else:
-            start_time = time_str
+        split_time = re.split('[:時分]+', target_time.group())
+        if len(split_time) < 2:
+            # 分が無い
+            split_time.append('0')
+        start_time = f'{split_time[0].zfill(2)}:{split_time[1].zfill(2)}'
 
         target_date = DATE_PATTERN.search(content)
         # 日付が入力されている
