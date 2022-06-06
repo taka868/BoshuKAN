@@ -8,7 +8,7 @@ import asyncio
 client = discord.Client()
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 
-MENTION_PATTERN = re.compile('<@[1-9]*>')
+MENTION_PATTERN = re.compile('<@[0-9]*>')
 NUM_PEOPLE_PATTERN = re.compile('@[1-9]')
 DATE_PATTERN = re.compile('(0?[1-9]|1[0-2])[/\-月](0?[1-9]|[12][0-9]|3[01])日?')
 TIME_PATTERN = re.compile('((0?|1)[0-9]|2[0-3])[:時][0-5][0-9]分?')
@@ -41,6 +41,7 @@ async def on_message(message):
         print('[DEBUG] Message with no number of people entered.')
         return
     num_of_people = int(target_num.group().replace('@', ''))
+    print('[DEBUG] Recruitment begins.')
 
     # 埋め込みメッセージを作成して送信
     embed_msg = discord.Embed(title=EMBED_TITLE,
