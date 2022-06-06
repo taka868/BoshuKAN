@@ -47,8 +47,9 @@ async def on_message(message):
     embed_msg = discord.Embed(title=EMBED_TITLE,
                     color=0x000099)
     # 募集状況の作成 メンション数+自分 / 指定数+自分 で人数を設定
-    embed_msg.add_field(name=RECRUITMENT_STATUS_TITLE,
-                        value=f'{len(message.mentions)+1} / {num_of_people+1}')
+    embed_msg = set_recruitment_status_field(embed_msg,
+                                             len(message.mentions)+1,
+                                             num_of_people+1)
 
     # 予定開始時刻の作成 時刻と日付を拾って設定
     now = datetime.datetime.now(pytz.timezone('Asia/Tokyo'))
@@ -80,9 +81,9 @@ async def on_message(message):
     embed_msg.add_field(name='予定開始時刻', value=start_datetime)
 
     # 参加者一覧の作成
-    member_list = [f'@{message.author.name}']
+    member_list = [f'<@{message.author.id}>']
     for member in message.mentions:
-        member_list.append(f'@{member.name}')
+        member_list.append(f'<@{member.id}>')
     print(member_list)
     embed_msg.add_field(name=ATTENDEE_LIST_TITLE, value='\n'.join(member_list))
 
@@ -121,32 +122,30 @@ async def react_attend(message, user):
     # 参加者一覧の更新
     embed = message.embeds[0]
     idx, attendee = get_attendee_field(embed)
-    if attendee[0] == user.name:
+    user_mention = f'<@{user.id}>'
+    if user_mention in attendee[0]:
         # 0 は言い出しっぺなので参加表明は無意味
         print('[DEBUG] Message from the recruiter.')
         return
-    if user.name in attendee:
+    if user_mention in attendee:
         # 既に登録されている
         print('[DEBUG] Already attending.')
         return
 
     # リアクションしたユーザーを参加者に追加してメッセージを更新
-    attendee.append(f'@{user.name}')
+    attendee.append(user_mention)
     update_value = '\n'.join(attendee)
     embed.set_field_at(idx, name=ATTENDEE_LIST_TITLE, value=update_value)
-    message.edit(embed=embed)
-
     # 人数に達したら募集終了
-    num_atendee, num_total = get_recruitment_status_field()
+    num_attendee, num_total = get_recruitment_status_field(embed=embed)
     if len(attendee) == num_total:
-        print
         # リアクションを削除
         await message.clear_reactions()
 
         # 募集停止メッセージ
-        embed = message.embeds[0]
         embed.set_footer(text='※参加者が集まりました')
-        await message.edit(embed=embed)
+    set_recruitment_status_field(embed, num_attendee+1, num_total)
+    await message.edit(embed=embed)   
 
     return
 
@@ -197,9 +196,21 @@ def get_recruitment_status_field(embed):
         if field.name == RECRUITMENT_STATUS_TITLE:
             # 最後の数字が総数、その前の数字が集まっている人数になっているはず
             numbers = re.findall(r'\d+', field.value)
-            return numbers[0], numbers[1]
+            return int(numbers[0]), int(numbers[1])
     # BoshuKAN のメッセージでは参加者一覧がないことはありえない
     return -1, None
+
+def set_recruitment_status_field(embed, num_attendee, num_total):
+    for i in range(len(embed.fields)):
+        field = embed.fields[i]        
+        if field.name == RECRUITMENT_STATUS_TITLE:
+            # すでにある場合はフィールドを変更
+            embed.set_field_at(i, name=RECRUITMENT_STATUS_TITLE,
+                                value=f'{num_attendee} / {num_total}')
+            return embed
+    embed.add_field(name=RECRUITMENT_STATUS_TITLE,
+                        value=f'{num_attendee} / {num_total}')
+    return embed
 
 def get_attendee_field(embed):
     # タイトルが参加者一覧のものを取得
