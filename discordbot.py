@@ -153,17 +153,18 @@ async def react_attend_cancel(message, user):
     # 参加者一覧の更新
     embed = message.embeds[0]
     idx, attendee = get_attendee_field(embed)
-    if attendee[0] == user.name:
+    user_mention = f'<@{user.id}>'
+    if user_mention in attendee[0]:
         # 0 は言い出しっぺなので参加辞退は無意味
         print('[DEBUG] Message from the recruiter.')
         return
-    if user.name not in attendee:
+    if user_mention not in attendee:
         # 参加表明していないユーザー
         print('[DEBUG] Not attending.')
         return
 
     # リアクションしたユーザーを参加者から削除してメッセージを更新
-    attendee.append(f'@{user.name}')
+    attendee.remove(user_mention)
     update_value = '\n'.join(attendee)
     embed.set_field_at(idx, name=ATTENDEE_LIST_TITLE, value=update_value)
     message.edit(embed=embed)
@@ -173,7 +174,6 @@ async def react_recruitment_cancel(message, user):
     # 募集停止
     embed = message.embeds[0]
     idx, attendee = get_attendee_field(embed)
-    print(f'{attendee[0]} != {user.name}')
     if attendee[0] != f'@{user.name}':
         # 募集を止められるのは言い出しっぺだけ
         print('[DEBUG] Non-recruiter has stopped recruiting.')
