@@ -16,7 +16,7 @@ TIME_PATTERN = re.compile('((0?|1)[0-9]|2[0-3])[:時][0-5][0-9]分?')
 ATTEND_EMOJI = '✋'
 ATTEND_CANCEL_EMOJI = '↩'
 RECRUITMENT_CANCEL_EMOJI = '🚫'
-EMBED_TITLE = f'参加者募集中（{ATTEND_EMOJI}参加 {ATTEND_CANCEL_EMOJI}参加取消 {RECRUITMENT_CANCEL_EMOJI}募集停止）'
+EMBED_TITLE = f'参加者募集中（{ATTEND_EMOJI}参加 {RECRUITMENT_CANCEL_EMOJI}募集停止）'
 RECRUITMENT_STATUS_TITLE = '募集状況'
 ATTENDEE_LIST_TITLE = '参加者一覧'
 
@@ -88,7 +88,6 @@ async def on_message(message):
 
     # リアクションの追加
     await msg.add_reaction(ATTEND_EMOJI)
-    await msg.add_reaction(ATTEND_CANCEL_EMOJI)
     await msg.add_reaction(RECRUITMENT_CANCEL_EMOJI)
 
 @client.event
@@ -108,12 +107,31 @@ async def on_reaction_add(reaction, user):
     # 各リアクションごとの処理を実行
     if reaction.emoji == ATTEND_EMOJI: # ✋
         await react_attend(message, user)
-    elif reaction.emoji == ATTEND_CANCEL_EMOJI: # ↩
-        await react_attend_cancel(message, user)
     elif reaction.emoji == RECRUITMENT_CANCEL_EMOJI: # 🚫
         await react_recruitment_cancel(message, user)
     else:
         print('[DEBUG] This emoji is not applicable.')
+
+@client.event
+async def on_reaction_remove(reaction, user):
+    print(f'on_reaction_add content=\'{reaction.emoji}\'')
+    if user.bot:
+        # bot 発信のリアクションの場合は nop
+        print('[DEBUG] Reactions sent by the bot.')
+        return
+
+    # そもそも BoshuKAN 発信のメッセージじゃなかったら
+    message = reaction.message
+    if message.author.name != 'BoshuKAN':
+        print('[DEBUG] This message is not applicable.')
+        return
+
+    # 各リアクションごとの処理を実行
+    if reaction.emoji == ATTEND_EMOJI: # ✋
+        await react_attend_cancel(message, user)
+    else:
+        print('[DEBUG] This emoji is not applicable.')
+
 
 async def react_attend(message, user):
     # 参加者一覧の更新
@@ -164,14 +182,20 @@ async def react_attend_cancel(message, user):
     attendee.remove(user_mention)
     update_value = '\n'.join(attendee)
     embed.set_field_at(idx, name=ATTENDEE_LIST_TITLE, value=update_value)
-    message.edit(embed=embed)
+
+    # 人数を減らす
+    num_attendee, num_total = get_recruitment_status_field(embed=embed)
+    set_recruitment_status_field(embed, num_attendee-1, num_total)
+    await message.edit(embed=embed)   
+
     return
 
 async def react_recruitment_cancel(message, user):
     # 募集停止
     embed = message.embeds[0]
     idx, attendee = get_attendee_field(embed)
-    if attendee[0] != f'@{user.name}':
+    user_mention = f'<@{user.id}>'
+    if attendee[0] != user_mention:
         # 募集を止められるのは言い出しっぺだけ
         print('[DEBUG] Non-recruiter has stopped recruiting.')
         return
