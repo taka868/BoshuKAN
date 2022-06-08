@@ -1,9 +1,11 @@
 import discord
 import re
-import datetime
+from datetime import datetime
 import pytz
 import os
-import asyncio
+import requests
+import json
+import traceback
 
 client = discord.Client()
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
@@ -12,6 +14,13 @@ MENTION_PATTERN = re.compile('<@[0-9]*>')
 NUM_PEOPLE_PATTERN = re.compile('@[1-9]')
 DATE_PATTERN = re.compile('(0?[1-9]|1[0-2])[/\-月](0?[1-9]|[12][0-9]|3[01])日?')
 TIME_PATTERN = re.compile('((0?|1)[0-9]|2[0-3])[:時][0-5][0-9]分?')
+LEAGUE_PATTERN = re.compile('リグマ|リーグマッチ')
+
+LEAGUE_INFO_DATETIME = 'date_time'
+LEAGUE_INFO_RULE = 'battle_rule'
+LEAGUE_INFO_STAGE = 'battle_stage'
+
+LEAGUE_SCHEDULE_URL = 'https://spla2.yuu26.com/league/schedule'
 
 ATTEND_EMOJI = '✋'
 ATTEND_CANCEL_EMOJI = '↩'
@@ -52,7 +61,7 @@ async def on_message(message):
                                              num_of_people+1)
 
     # 予定開始時刻の作成 時刻と日付を拾って設定
-    now = datetime.datetime.now(pytz.timezone('Asia/Tokyo'))
+    now = datetime.now(pytz.timezone('Asia/Tokyo'))
     start_time = f'{str(now.hour).zfill(2)}:{str(now.minute).zfill(2)}'
     start_date = f'{now.month}/{now.day}'
     target_time = TIME_PATTERN.search(content)
@@ -79,10 +88,24 @@ async def on_message(message):
 
     # 参加者一覧の作成
     member_list = [f'<@{message.author.id}>']
-    for member in message.mentions:
-        member_list.append(f'<@{member.id}>')
-    print(member_list)
+    # for member in message.mentions:
+    #     member_list.append(f'<@{member.id}>')
     embed_msg.add_field(name=ATTENDEE_LIST_TITLE, value='\n'.join(member_list))
+
+    # リグマ情報の作成
+    is_league = re.search(LEAGUE_PATTERN, content)
+    if is_league is not None:
+        # 設定された時間からリグマ情報を取得
+        league_info = fetch_league_schedule(start_datetime)
+        if league_info is not None:
+            embed_msg.add_field(
+                name=f'リグマ {league_info[0][LEAGUE_INFO_DATETIME]}',
+                value=f'{league_info[0][LEAGUE_INFO_RULE]}\n{league_info[0][LEAGUE_INFO_STAGE]}')
+        if league_info is not None and len(league_info) >= 2:
+            embed_msg.add_field(
+                name=f'リグマ {league_info[1][LEAGUE_INFO_DATETIME]}',
+                value=f'{league_info[1][LEAGUE_INFO_RULE]}\n{league_info[1][LEAGUE_INFO_STAGE]}')
+        # TODO: 画像どうしよっかな
 
     msg = await message.channel.send(embed=embed_msg)
 
@@ -243,5 +266,46 @@ def get_attendee_field(embed):
             return i, attendee
     # BoshuKAN のメッセージでは参加者一覧がないことはありえない
     return -1, None
+
+def fetch_league_schedule(start_datetime):
+    # 面倒なので dict の配列で返す
+    league_infos = [{}, {}]
+
+    # 入力は MM/DD hh:mm 形式を前提とする
+    split_dt = list(map(int, re.split('[/ :]+', start_datetime)))
+    # TODO: 来年の日付をいれることは考慮していない
+    start_dt = datetime(datetime.now().year, split_dt[0], split_dt[1], split_dt[2],
+                       0, 0, 0, None)
+    # 時間を奇数に変換
+    if start_dt.hour % 2 == 0:
+        start_dt = datetime.combine(
+            start_dt.date(), start_dt.time()) + timedelta(hours=-1)
+    try:
+        response = requests.get(LEAGUE_SCHEDULE_URL)
+        schedule_res = json.loads(response.text)
+        date_format = '%Y-%m-%dT%H:%M:%S'
+        disp_format = '%m/%d %H:%M'
+        
+        # 指定された時刻に該当するスケジュールを探す
+        for i in range(len(schedule_res['result'])):
+            schedule = schedule_res['result'][i]
+            fetch_dt = datetime.strptime(schedule['start'], date_format)
+            # 開始時間に該当するものがあれば設定
+            if fetch_dt == start_dt:
+                league_infos[0][LEAGUE_INFO_DATETIME] = fetch_dt.strftime(disp_format)
+                league_infos[0][LEAGUE_INFO_RULE] = schedule['rule']
+                league_infos[0][LEAGUE_INFO_STAGE] = '\n'.join(schedule['maps'])
+                if len(schedule_res['result']) > i+2:
+                    next = schedule_res['result'][i+1]
+                    next_dt = datetime.strptime(next['start'], date_format)
+                    league_infos[1][LEAGUE_INFO_DATETIME] = next_dt.strftime(disp_format)
+                    league_infos[1][LEAGUE_INFO_RULE] = next['rule']
+                    league_infos[1][LEAGUE_INFO_STAGE] = '\n'.join(next['maps'])
+
+    except:
+        # API が死んだときはここにくるかも
+        traceback.print_exc()
+        return None
+    return league_infos
 
 client.run(TOKEN)
