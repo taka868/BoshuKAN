@@ -13,7 +13,7 @@ TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 MENTION_PATTERN = re.compile('<@[0-9]*>')
 NUM_PEOPLE_PATTERN = re.compile('@[1-9]')
 DATE_PATTERN = re.compile('(0?[1-9]|1[0-2])[/\-月](0?[1-9]|[12][0-9]|3[01])日?')
-TIME_PATTERN = re.compile('((0?|1)[0-9]|2[0-3])[:時][0-5][0-9]分?')
+TIME_PATTERN = re.compile('((0?|1)[0-9]|2[0-3])[:時]([0-5][0-9]分?)?')
 LEAGUE_PATTERN = re.compile('リグマ|リーグマッチ')
 
 LEAGUE_INFO_DATETIME = 'date_time'
