@@ -26,6 +26,7 @@ ATTEND_EMOJI = '✋'
 ATTEND_CANCEL_EMOJI = '↩'
 RECRUITMENT_CANCEL_EMOJI = '🚫'
 EMBED_TITLE = f'参加者募集中（{ATTEND_EMOJI}参加 {RECRUITMENT_CANCEL_EMOJI}募集停止）'
+SCHEDULE_TIME_TITLE = '予定開始時刻'
 RECRUITMENT_STATUS_TITLE = '募集状況'
 ATTENDEE_LIST_TITLE = '参加者一覧'
 
@@ -92,7 +93,7 @@ async def on_message(message):
             else:
                 start_date = date_str
     start_datetime = f'{start_date} {start_time}'
-    embed_msg.add_field(name='予定開始時刻', value=start_datetime)
+    embed_msg.add_field(name=SCHEDULE_TIME_TITLE, value=start_datetime)
 
     # 参加者一覧の作成
     member_list = [f'<@{message.author.id}>']
@@ -193,6 +194,9 @@ async def react_attend(message, user):
     set_recruitment_status_field(embed, num_attendee+1, num_total)
     await message.edit(embed=embed)   
 
+    # 参加したよメッセージを送信
+    await message.channel.send(f'{get_datetime_field(embed)}の募集に{user_mention}が参加しました')
+
     return
 
 async def react_attend_cancel(message, user):
@@ -217,6 +221,8 @@ async def react_attend_cancel(message, user):
     # 人数を減らす
     num_attendee, num_total = get_recruitment_status_field(embed=embed)
     set_recruitment_status_field(embed, num_attendee-1, num_total)
+
+    # TODO: 参加枠が埋まっていた場合にリアクションを追加して footer 削除する？
     await message.edit(embed=embed)   
 
     return
@@ -263,6 +269,15 @@ def set_recruitment_status_field(embed, num_attendee, num_total):
     embed.add_field(name=RECRUITMENT_STATUS_TITLE,
                         value=f'{num_attendee} / {num_total}')
     return embed
+
+def get_datetime_field(embed):
+    # タイトルが予定開始時刻のものを取得
+    for i in range(len(embed.fields)):
+        field = embed.fields[i]        
+        if field.name == SCHEDULE_TIME_TITLE:
+            return field.value
+    # BoshuKAN のメッセージでは時刻がないことはありえない
+    return 
 
 def get_attendee_field(embed):
     # タイトルが参加者一覧のものを取得
