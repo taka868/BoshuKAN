@@ -14,7 +14,7 @@ MENTION_PATTERN = re.compile('<@[0-9]*>')
 NUM_PEOPLE_PATTERN = re.compile('@[1-9]')
 DATE_PATTERN = re.compile('(0?[1-9]|1[0-2])[/\-月](0?[1-9]|[12][0-9]|3[01])日?')
 TIME_PATTERN = re.compile('((0?|1)[0-9]|2[0-3])[:時]([0-5][0-9]分?)?')
-LEAGUE_PATTERN = re.compile('リグマ|リーグマッチ')
+LEAGUE_PATTERN = re.compile('(リグマ|リーグマッチ)((0?|1)[0-9]|2[0-3])*')
 
 LEAGUE_INFO_DATETIME = 'date_time'
 LEAGUE_INFO_RULE = 'battle_rule'
@@ -67,6 +67,14 @@ async def on_message(message):
     target_time = TIME_PATTERN.search(content)
 
     # 時刻が入力されている
+    if target_time is None:
+        # "リグマXX" の時間の指定はここで拾う
+        league_and_time = LEAGUE_PATTERN.search(content)
+        if league_and_time is not None:
+            # ちょっとダサい気もするが 数字だけ抜いて「時」をつける
+            lat_num = re.sub(r'\D', '', league_and_time.group())
+            lat_str = f'{lat_num}時'
+            target_time = TIME_PATTERN.search(lat_str)
     if target_time is not None:
         split_time = re.split('[:時分]+', target_time.group())
         if len(split_time) < 2:
@@ -99,12 +107,12 @@ async def on_message(message):
         league_info = fetch_league_schedule(start_datetime)
         if league_info is not None:
             embed_msg.add_field(
-                name=f'リグマ {league_info[0][LEAGUE_INFO_DATETIME]}',
-                value=f'{league_info[0][LEAGUE_INFO_RULE]}\n{league_info[0][LEAGUE_INFO_STAGE]}')
+                name=f'{league_info[0][LEAGUE_INFO_DATETIME]} {league_info[0][LEAGUE_INFO_RULE]}',
+                value=f'{league_info[0][LEAGUE_INFO_STAGE]}')
         if league_info is not None and len(league_info) >= 2:
             embed_msg.add_field(
-                name=f'リグマ {league_info[1][LEAGUE_INFO_DATETIME]}',
-                value=f'{league_info[1][LEAGUE_INFO_RULE]}\n{league_info[1][LEAGUE_INFO_STAGE]}')
+                name=f'{league_info[1][LEAGUE_INFO_DATETIME]} {league_info[1][LEAGUE_INFO_RULE]}',
+                value=f'{league_info[1][LEAGUE_INFO_STAGE]}')
         # TODO: 画像どうしよっかな
 
     msg = await message.channel.send(embed=embed_msg)
